@@ -1,25 +1,50 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Home } from './pages/Home';
+import { TODO } from './pages/Todo';
+import { TodoProvider } from './context/TodoContext';
+import { Tabs, Tab, Box } from '@mui/material';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <TodoProvider>
+      <Router
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AppContent />
+      </Router>
+    </TodoProvider>
+  );
+}
+
+function AppContent() {
+  const location = useLocation(); // 現在のURLを取得
+  const [value, setValue] = useState(location.pathname); // 現在のタブを管理
+
+  useEffect(() => {
+    setValue(location.pathname); // URLが変更されたときにタブを更新
+  }, [location]);
+
+  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
+    setValue(newValue);
+  };
+
+  return (
+    <Box sx={{ padding: '20px', margin: '10px' }}>
+      {/* Tabs コンポーネント */}
+      <Tabs
+        value={value}
+        onChange={handleChange}
+        indicatorColor="primary"
+        textColor="primary"
+      >
+        <Tab label="Home" value="/" component={Link} to="/" />
+        <Tab label="Todo" value="/todo" component={Link} to="/todo" />
+      </Tabs>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/todo" element={<TODO />} />
+      </Routes>
+    </Box>
   );
 }
 
