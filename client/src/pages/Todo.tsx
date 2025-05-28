@@ -1,23 +1,29 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDateTime } from "../common/common";
-import { Todo, useTodoContext } from "../context/TodoContext";
 import { CmnSwitch } from "../components/CmnSwitch";
 import { CustomInput } from '../components/CustomInput';
-import { Button, FormControlLabel, SxProps, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Theme, Paper, Typography, Box, Input, Checkbox, FormLabel } from "@mui/material";
+import { FormControlLabel, SxProps, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Theme, Paper, Typography, Box, Input, FormLabel } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
+import type { Todo } from "../common/api";
+import * as api from "../common/api";
+import { CmnForm } from "../components/CmnForm";
+import { CmnButton } from "../components/CmnButton";
 const css_header: SxProps<Theme> = {
     backgroundColor: '#f0f0f0',
     margin: '10px',
 }
 
+type ShowTodoList = Todo & {
+    completed: boolean;
+}
+
 // TODO表示用ページコンポーネント   
 export const TODO: React.FC = (props) => {
-    const { getTodos, addTodo, deleteTodo, completedTodo } = useTodoContext();
-    const todos = getTodos(); // Todoリストを取得
     const [searchParams, setSearchParams] = useSearchParams(); // クエリパラメータを管理
-    const [addFront, toggleAddFront] = useReducer((s, _t) => !s, false); // フォームのリファレンスを作成
+    // const [addFront, toggleAddFront] = useReducer((s, _t) => !s, false); // フォームのリファレンスを作成
     const hiddenCompleted = searchParams.get('hiddenCompleted') === 'true'; // 完了を非表示にするかどうか
     const [formState, setFormState] = useState({ title: '', description: '', limit_date: '' }); // フォームの状態を管理
+    const [todos, setTodos] = useState<ShowTodoList[]>([]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -29,30 +35,62 @@ export const TODO: React.FC = (props) => {
         setSearchParams({ hiddenCompleted: String(newHiddenCompleted) }); // クエリパラメータを更新
     };
 
-    const OnButton_addTodo: React.FormEventHandler<HTMLFormElement> = (e) => {
+    const completedTodo = async (todo_id: string) => {
+        const todo = todos.find(todo => todo.todo_id === todo_id);
+        if (todo) {
+            const updatedTodo = { ...todo, completed: !todo.completed };
+            setTodos(todos.map(t => (t.todo_id === todo_id ? updatedTodo : t)));
+            await api.updateTodo(todo_id, { status: updatedTodo.completed ? 'done' : 'todo' });
+        }
+    }
+
+    const deleteTodo = async (todo_id: string) => {
+        if (window.confirm('本当に削除しますか？')) {
+            // APIを呼び出してTodoを削除する処理を追加
+            await api.deleteTodo(todo_id);
+        }
+        fetchTodos();
+    }
+
+    const fetchTodos = async () => {
+        const todos = await api.fetchTodos({ user_id: '1' });
+        setTodos(todos.map(todo => ({ ...todo, completed: todo.status === 'done' }))); // APIからTodoを取得
+    }
+
+    useEffect(() => {
+        fetchTodos();
+    }, []);
+
+    const OnButton_addTodo: React.FormEventHandler<HTMLFormElement> = async (e) => {
         e.preventDefault();
         const form = e.target as HTMLFormElement; // 型を HTMLFormElement に指定
         const title = (form.elements.namedItem("title") as HTMLInputElement).value;
         const description = (form.elements.namedItem("description") as HTMLInputElement).value;
         const limitDate = (form.elements.namedItem("limit_date") as HTMLInputElement).value;
 
-        const newTodo: Todo = {
-            id: Date.now().toString(),
+        const todo: api.addTodo = {
             title,
             description,
-            completed: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            limitDate: limitDate ? new Date(limitDate) : undefined,
+            limitDate: limitDate ? new Date(limitDate) : null, // 日付が指定されていない場合は null を設定
+            user: { user_id: '1' }, // ユーザー情報を追加
         };
-        addTodo(newTodo, addFront);
+        await api.addTodo(todo); // APIを呼び出してTodoを追加
+        fetchTodos(); // Todoリストを再取得
+
         setFormState({ title: '', description: '', limit_date: '' }); // フォームをリセット
+
     }
 
     return (<>
         <Typography variant="h4">Todo</Typography>
+        {/* <button onClick={() => {
+            loading.setLoading(true);
+        }}>TEST</button>
+        <button onClick={() => {
+            loading.setLoading(false);
+        }}>TEST2</button> */}
         <Box>
-            <form onSubmit={OnButton_addTodo}>
+            <CmnForm onSubmit={OnButton_addTodo}>
                 <Box>
                     <FormLabel>期限(任意)</FormLabel>
                     <Input type="date" name="limit_date"
@@ -70,12 +108,12 @@ export const TODO: React.FC = (props) => {
                         onChange={handleInputChange}
                     />
                 </Box>
-                <Box>
+                {/* <Box>
                     <FormLabel>上に追加</FormLabel>
                     <Checkbox name="addFront" checked={addFront} onChange={toggleAddFront} />
                     <Button type="submit" color="primary" variant="outlined">Add Todo</Button>
-                </Box>
-            </form>
+                </Box> */}
+            </CmnForm>
         </Box>
         <Box>
             <FormControlLabel
@@ -101,20 +139,20 @@ export const TODO: React.FC = (props) => {
                     </TableHead>
                     <TableBody>
                         {todos.filter(todo => !hiddenCompleted || !todo.completed).map((todo) => (
-                            <TableRow key={todo.id} sx={{ border: '1px solid black', margin: '10px', padding: '10px' }}>
+                            <TableRow key={todo.todo_id} sx={{ border: '1px solid black', margin: '10px', padding: '10px' }}>
                                 <TableCell>
-                                    <Button onClick={() => deleteTodo(todo.id)}>X</Button>
+                                    <CmnButton onClick={() => deleteTodo(todo.todo_id)}>X</CmnButton>
                                 </TableCell>
                                 <TableCell>
-                                    <CmnSwitch checked={todo.completed} onChange={() => completedTodo(todo.id)} />
+                                    <CmnSwitch checked={todo.completed} onChange={() => completedTodo(todo.todo_id)} />
                                 </TableCell>
                                 <TableCell>
                                     {todo.title}
                                 </TableCell>
                                 <TableCell>{todo.description}</TableCell>
-                                <TableCell>{formatDateTime(todo.limitDate)}</TableCell>
+                                <TableCell>{formatDateTime(new Date(todo.limit_date))}</TableCell>
                                 <TableCell>
-                                    {formatDateTime(todo.createdAt)}
+                                    {formatDateTime(new Date(todo.create_tm))}
                                 </TableCell>
                             </TableRow>
                         ))}

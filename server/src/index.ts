@@ -1,41 +1,31 @@
 import express from 'express';
-import { Pool } from 'pg'; // PostgreSQL 用の Pool をインポート
+import cors from 'cors';
+import todoRoute from './routes/todo.route';
 
 const app = express();
 const port = 3000;
 
 // PostgreSQL 接続設定
-const pool = new Pool({
-    user: 'neondb_owner', // PostgreSQL ユーザー名
-    host: 'ep-lucky-breeze-a10fskf2.ap-southeast-1.aws.neon.tech',     // ホスト名
-    database: 'neondb', // データベース名
-    password: 'npg_Rh2JoAg5jmrO', // パスワード
-    port: 5432,
-    ssl: {
-        rejectUnauthorized: false, // SSL 証明書の検証を無効化（必要に応じて調整）
-    },         // PostgreSQL のデフォルトポート
-});
+try {
+    app.use(express.json());
+    app.use(cors());
+    app.use((req, res, next) => {
+        console.log(`------------------------------------------------------------------------------------------------`);
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+        if (req.method === 'GET') {
+            console.log(`Request Params: ${JSON.stringify(req.params)}`);
+            console.log(`Request Query: ${JSON.stringify(req.query)}`);
+        } else {
+            console.log(`Request Body: ${JSON.stringify(req.body)}`);
+        }
+        next();
+    });
+    app.use('/todo', todoRoute);
 
-// Middleware to parse JSON
-app.use(express.json());
-
-// Sample route
-app.get('/', (req, res) => {
-    res.send('Hello, World!');
-});
-
-// Example API route
-app.get('/api/todo', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM todos'); // `todos` テーブルからデータを取得
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error fetching data from database');
-    }
-});
-
-// Start the server
-app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
-});
+    app.listen(port, () => {
+        console.log(`サーバー起動 http://localhost:${port}`);
+    });
+} catch (error) {
+    console.error('Error connecting to the database:', error);
+    process.exit(1); // エラーが発生した場合はプロセスを終了
+}

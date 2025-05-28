@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { TODO } from './pages/Todo';
 import { TodoProvider } from './context/TodoContext';
-import { Tabs, Tab, Box } from '@mui/material';
+import { Tabs, Tab, Box, LinearProgress } from '@mui/material';
+import { LoadingContext, LoadingProvider } from './context/Loading';
+import { CmnLoadingBar } from './components/CmnLoadingBar';
+
 
 function App() {
   return (
@@ -27,24 +30,27 @@ function AppContent() {
   const handleChange = (event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
-
   return (
-    <Box sx={{ padding: '20px', margin: '10px' }}>
-      {/* Tabs コンポーネント */}
-      <Tabs
-        value={value}
-        onChange={handleChange}
-        indicatorColor="primary"
-        textColor="primary"
-      >
-        <Tab label="Home" value="/" component={Link} to="/" />
-        <Tab label="Todo" value="/todo" component={Link} to="/todo" />
-      </Tabs>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/todo" element={<TODO />} />
-      </Routes>
-    </Box>
+    <LoadingProvider>
+      <Box sx={{ padding: '20px', margin: '10px' }}>
+        {/* タイトル */}
+        {/* Tabs コンポーネント */}
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="Home" value="/" component={Link} to="/" />
+          <Tab label="Todo" value="/todo" component={Link} to="/todo" />
+        </Tabs>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/todo" element={<TODO />} />
+        </Routes>
+      </Box>
+      <CmnLoadingBar />
+    </LoadingProvider>
   );
 }
 
